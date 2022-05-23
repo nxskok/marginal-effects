@@ -1,2 +1,218 @@
 redo of https://vincentarelbundock.github.io/marginaleffects/
 
+```{r}
+library(tidyverse)
+library(marginaleffects)
+```
+
+```{r}
+mod <- lm(mpg ~ hp * wt * am, data = mtcars)
+```
+
+```{r}
+summary(mod)
+```
+
+```{r}
+predictions(mod)
+```
+
+```{r}
+predictions(mod, variables = "wt")
+```
+
+
+```{r}
+new <- datagrid(model = mod, am = 0, wt = seq(2, 3, 0.2))
+new
+```
+
+```{r}
+predictions(mod, newdata = new)
+```
+
+```{r}
+plot_cap(mod, condition = c("hp", "wt"))
+plot_cap(mod, condition = c("hp", "wt"), draw = FALSE)
+```
+
+```{r}
+plot_cap(mod, condition = c("wt"))
+```
+
+```{r}
+mod2 <- lm(mpg ~ wt * factor(cyl), data = mtcars)
+drop1(mod2, test = "F")
+plot_cap(mod2, condition = c("wt", "cyl"))
+```
+
+titanic
+
+```{r}
+titanic <- read.csv("https://vincentarelbundock.github.io/Rdatasets/csv/Stat2Data/Titanic.csv")
+titanic$Woman <- titanic$Sex == "female"
+mod3 <- glm(Survived ~ Woman + Age * PClass, data = titanic, family = binomial)
+cmp <- comparisons(mod3)
+# cmp
+summary(cmp)
+```
+
+```{r}
+predictions(mod3, variables = c("PClass", "Age"))
+```
+
+
+this seems not to work
+
+```{r}
+cmp <- comparisons(
+    mod3,
+    transform_pre = "ratio",
+    variables = list(Age = "2sd", PClass = "pairwise"))
+summary(cmp)
+```
+
+rats from d29
+
+```{r}
+my_url <- "http://www.utsc.utoronto.ca/~butler/d29/rat.txt"
+rats <- read_delim(my_url, " ")
+rats
+```
+
+```{r}
+rats2 <- rats %>% mutate(status = factor(status))
+status.1 <- glm(status ~ dose, family = "binomial", data = rats2)
+```
+
+```{r}
+summary(status.1)
+```
+
+```{r}
+predictions(status.1)
+```
+
+```{r}
+plot_cap(status.1, condition = "dose")
+```
+
+```{r}
+predictions(status.1, variables = "dose")
+```
+
+
+custom doses
+
+```{r}
+new <- datagrid(model = status.1, dose = seq(0.5, 4.5, 1))
+new
+predictions(status.1, newdata = new)
+```
+
+```{r}
+comparisons(status.1)
+```
+
+bigger dataset
+
+```{r}
+my_url <- "http://www.utsc.utoronto.ca/~butler/d29/rat2.txt"
+rat2 <- read_delim(my_url, " ")
+##
+## -- Column specification ----------------------------
+## cols(
+## dose = col_double(),
+## lived = col_double(),
+## died = col_double()
+## )
+rat2
+```
+
+```{r}
+response <- with(rat2, cbind(lived, died))
+response
+rat2.1 <- glm(response ~ dose,
+family = "binomial",
+data = rat2
+)
+summary(rat2.1)
+```
+
+```{r}
+comparisons(rat2.1)
+```
+
+```{r}
+predictions(rat2.1)
+```
+
+```{r}
+comparisons(rat2.1)
+```
+
+
+```{r}
+predictions(rat2.1, variables = "dose")
+```
+
+
+
+```{r}
+plot_cap(rat2.1, condition = "dose")
+```
+
+```{r}
+my_url <-
+"http://www.utsc.utoronto.ca/~butler/d29/sepsis.txt"
+sepsis <- read_delim(my_url, " ")
+sepsis
+```
+
+```{r}
+sepsis.1 <- glm(death ~ factor(shock) + factor(malnut) + factor(alcohol) + age +
+factor(bowelinf),
+family = "binomial",
+data = sepsis
+)
+summary(sepsis.1)
+```
+
+```{r}
+summary(sepsis)
+new <- datagrid(model = sepsis.1, malnut = c(0, 1))
+new
+```
+
+```{r}
+predictions(sepsis.1, variables = "malnut")
+```
+
+
+```{r}
+predictions(sepsis.1, newdata = new)
+```
+
+```{r}
+predictions(sepsis.1, variables = c("shock", "age"))
+```
+
+
+```{r}
+plot_cap(sepsis.1, condition = c("age", "malnut"))
+```
+
+```{r}
+predictions(sepsis.1, variables = c("age", "shock"))
+```
+
+
+```{r}
+new <- datagrid(model = sepsis.1, malnut = c(0, 1), shock = 0:1, alcohol = 0:1)
+predictions(sepsis.1, newdata = new)
+```
+
+```{r}
+comparisons(sepsis.1) %>% summary()
+```
+
