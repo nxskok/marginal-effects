@@ -3,74 +3,71 @@ redo of https://vincentarelbundock.github.io/marginaleffects/
 ```{r}
 library(tidyverse)
 library(marginaleffects)
+library (palmerpenguins)
 ```
 
 ```{r}
-mod <- lm(mpg ~ hp * wt * am, data = mtcars)
-```
-
-```{r}
-summary(mod)
-```
-
-```{r}
-predictions(mod)
-```
-
-```{r}
-predictions(mod, variables = "wt")
+penguins
 ```
 
 
 ```{r}
-new <- datagrid(model = mod, am = 0, wt = seq(2, 3, 0.2))
-new
+penguins.1 <- lm(bill_depth_mm ~ bill_length_mm, data = penguins)
+summary(penguins.1)
 ```
 
 ```{r}
-predictions(mod, newdata = new)
+predictions(penguins.1)
 ```
 
 ```{r}
-plot_cap(mod, condition = c("hp", "wt"))
-plot_cap(mod, condition = c("hp", "wt"), draw = FALSE)
+predictions(penguins.1, variables = "bill_length_mm")
+```
+
+introduce species
+
+```{r}
+ggplot(penguins, aes(x = bill_length_mm, y = bill_depth_mm, colour = species)) + 
+  geom_point() + geom_smooth(method = "lm")
+```
+
+
+```{r}
+penguins.2 <- lm(bill_depth_mm ~ bill_length_mm + species, data = penguins)
+summary(penguins.2)
 ```
 
 ```{r}
-plot_cap(mod, condition = c("wt"))
+predictions(penguins.2, variables = c("bill_length_mm", "species"))
 ```
 
 ```{r}
-mod2 <- lm(mpg ~ wt * factor(cyl), data = mtcars)
-drop1(mod2, test = "F")
-plot_cap(mod2, condition = c("wt", "cyl"))
-```
-
-titanic
-
-```{r}
-titanic <- read.csv("https://vincentarelbundock.github.io/Rdatasets/csv/Stat2Data/Titanic.csv")
-titanic$Woman <- titanic$Sex == "female"
-mod3 <- glm(Survived ~ Woman + Age * PClass, data = titanic, family = binomial)
-cmp <- comparisons(mod3)
-# cmp
-summary(cmp)
+predictions(penguins.2, variables = "species")
 ```
 
 ```{r}
-predictions(mod3, variables = c("PClass", "Age"))
+predictions(penguins.2, variables = "bill_length_mm")
 ```
-
-
-this seems not to work
 
 ```{r}
-cmp <- comparisons(
-    mod3,
-    transform_pre = "ratio",
-    variables = list(Age = "2sd", PClass = "pairwise"))
-summary(cmp)
+comparisons(penguins.2)
 ```
+
+```{r}
+summary(comparisons(penguins.2))
+```
+
+```{r}
+penguins %>% group_by(species) %>% 
+  summarize(mean_depth = mean(bill_depth_mm, na.rm = TRUE),
+            mean_length = mean(bill_length_mm, na.rm = TRUE))
+```
+
+```{r}
+plot_cap(penguins.2, condition = c("bill_length_mm", "species"))
+```
+
+
 
 rats from d29
 
@@ -147,9 +144,6 @@ comparisons(rat2.1)
 predictions(rat2.1)
 ```
 
-```{r}
-comparisons(rat2.1)
-```
 
 
 ```{r}
@@ -178,33 +172,19 @@ data = sepsis
 summary(sepsis.1)
 ```
 
-```{r}
-summary(sepsis)
-new <- datagrid(model = sepsis.1, malnut = c(0, 1))
-new
-```
 
 ```{r}
 predictions(sepsis.1, variables = "malnut")
 ```
-
-
-```{r}
-predictions(sepsis.1, newdata = new)
-```
-
-```{r}
-predictions(sepsis.1, variables = c("shock", "age"))
-```
-
 
 ```{r}
 plot_cap(sepsis.1, condition = c("age", "malnut"))
 ```
 
 ```{r}
-predictions(sepsis.1, variables = c("age", "shock"))
+predictions(sepsis.1, variables = c("shock", "age"))
 ```
+
 
 
 ```{r}
