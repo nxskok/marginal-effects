@@ -1,9 +1,11 @@
 redo of https://vincentarelbundock.github.io/marginaleffects/
 
 ```{r}
+library(MASS)
+library(nnet)
 library(tidyverse)
 library(marginaleffects)
-library (palmerpenguins)
+library(palmerpenguins)
 ```
 
 ```{r}
@@ -194,5 +196,309 @@ predictions(sepsis.1, newdata = new)
 
 ```{r}
 comparisons(sepsis.1) %>% summary()
+```
+
+```{r}
+summary(marginaleffects(sepsis.1))
+```
+
+not *quite* the same
+
+now try ordered or multinomial
+
+```{r}
+my_url <- "http://www.utsc.utoronto.ca/~butler/d29/miners-tab.txt"
+freqs <- read_table(my_url)
+freqs
+```
+
+```{r}
+freqs %>%
+pivot_longer(-Exposure, names_to = "Severity", values_to = "Freq") %>%
+group_by(Exposure) %>%
+mutate(proportion = Freq / sum(Freq)) -> miners
+miners
+```
+
+```{r}
+miners %>%
+mutate(sev_ord = fct_inorder(Severity)) -> miners
+miners
+```
+
+```{r}
+sev.1 <- polr(sev_ord ~ Exposure,
+weights = Freq,
+data = miners
+)
+summary(sev.1)
+```
+
+```{r}
+p <- predictions(sev.1, type = "probs", variables = "Exposure")
+p
+```
+
+```{r}
+plot_cap(sev.1, condition = "Exposure", type = "probs")
+```
+
+that doesn't work
+
+```{r}
+plot_cap(sev.1, condition = "Exposure", type = "probs", draw = FALSE) %>% 
+  ggplot(aes(x = Exposure.x, y= predicted, colour = group)) +
+  geom_line()
+```
+
+multinomial
+
+```{r}
+my_url <- "http://www.utsc.utoronto.ca/~butler/d29/mlogit.csv"
+brandpref <- read_csv(my_url)
+brandpref
+```
+
+```{r}
+brandpref %>%
+mutate(sex = factor(sex)) %>%
+mutate(brand = factor(brand)) -> brandpref
+```
+
+```{r}
+brands.1 <- multinom(brand ~ age + sex, data = brandpref)
+```
+
+```{r}
+step(brands.1)
+```
+
+```{r}
+predictions(brands.1, variables = c("age", "sex"), type = "probs")
+```
+
+```{r}
+plot_cap(brands.1, condition = c("age", "sex"), type = "probs", draw = FALSE) %>% 
+  rename(age = condition1, sex = condition2, brand = group) %>% 
+  ggplot(aes(x = age, y = predicted, colour = brand, shape = sex)) + geom_point() + geom_line()
+```
+
+```{r}
+brands.4 <- update(brands.1, . ~ . + age:sex)
+```
+
+```{r}
+step(brands.4)
+```
+
+```{r}
+plot_cap(brands.4, condition = c("age", "sex"), type = "probs", draw = FALSE)  %>% 
+  rename(brand = group, age = condition1, sex = condition2) %>% 
+  ggplot(aes(x = age, y = predicted, colour = brand, shape = sex)) +
+  geom_point() + geom_line()
+  
+```
+
+very little difference from model without interaction
+
+ancova
+
+
+```{r}
+url <- "http://www.utsc.utoronto.ca/~butler/d29/ancova.txt"
+prepost <- read_delim(url, " ")
+prepost
+```
+
+```{r}
+prepost.1 <- lm(after ~ before * drug, data = prepost)
+summary(prepost.1)
+```
+
+or, better (really):
+
+```{r}
+drop1(prepost.1, test = "F")
+```
+
+predictions with interaction
+
+```{r}
+predictions(prepost.1, variables = c("drug", "before"))
+```
+
+gap between a and b is bigger at the end.
+
+```{r}
+plot_cap(prepost.1, condition = c("before", "drug"))
+```
+
+predictions of after score for drug A higher than those for drug B by more when before score higher.
+
+
+interaction comes out
+
+```{r}
+prepost.2 <- update(prepost.1, . ~ . - before:drug)
+drop1(prepost.2, test = "F")
+```
+
+both before score and drug are significant in predicting after score
+
+now plot predictions
+
+```{r}
+plot_cap(prepost.2, condition = c("before", "drug"))
+```
+
+now the lines are exactly parallel (a consequence of no interaction in model).
+
+
+sleep data
+
+```{r}
+my_url <- "http://www.utsc.utoronto.ca/~butler/d29/sleep.txt"
+sleep <- read_delim(my_url, " ")
+sleep
+```
+
+```{r}
+sleep.1 <- lm(atst ~ age, data = sleep)
+summary(sleep.1)
+```
+
+predictions
+
+```{r}
+predictions(sleep.1)
+```
+
+A prediction for each child.
+
+```{r}
+predictions(sleep.1, variables = "age")
+```
+
+predictions for a five-number summary of age
+
+custom ages
+
+```{r}
+new <- datagrid(model = sleep.1, age = c(10, 5))
+new
+```
+
+and then predict with these
+
+```{r}
+predictions(sleep.1, newdata = new)
+```
+
+these are CIs for mean, as are these.
+
+```{r}
+plot_cap(sleep.1, condition = "age")
+```
+
+but we have to do prediction intervals the old way:
+
+```{r}
+p <- predict(sleep.1, newdata = new, interval = "p")
+cbind(new, p)
+```
+
+visits to doctors
+
+
+```{r}
+my_url <-
+"http://www.utsc.utoronto.ca/~butler/d29/regressx.txt"
+visits <- read_delim(my_url, " ")
+visits
+```
+
+```{r}
+visits.1 <- lm(timedrs ~ phyheal + menheal + stress, data = visits)
+summary(visits.1)
+
+```
+
+residuals
+
+```{r}
+ggplot(visits.1, aes(x = .fitted, y = .resid)) + geom_point()
+```
+
+```{r}
+ggplot(visits.1, aes(sample = .resid)) + stat_qq() + stat_qq_line()
+```
+
+vs x
+
+```{r}
+predictions(visits.1) %>% 
+  mutate(residual = timedrs - predicted) %>% 
+  pivot_longer(phyheal:stress) %>% 
+  ggplot(aes(x = value, y = residual)) + geom_point() +
+  facet_wrap(~name, ncol = 2, scales = "free")
+```
+
+
+skipping
+
+```{r}
+boxcox(timedrs+1~phyheal + menheal + stress, data = visits)
+```
+
+
+```{r}
+visits.3 <- lm(log(timedrs + 1) ~ phyheal + menheal + stress,
+data = visits)
+summary(visits.3)
+```
+
+```{r}
+visits.4 <- lm(log(timedrs + 1) ~ phyheal + stress, data = visits)
+summary(visits.4)
+```
+
+predictions for stress (actually of log timedrs + 1)
+
+```{r}
+plot_cap(visits.4, condition = "stress")
+```
+
+or do again
+
+```{r}
+unt <- function(y) {
+  exp(y) - 1
+}
+```
+
+
+```{r}
+plot_cap(visits.4, condition = "stress", draw = FALSE) %>% 
+  rename(stress = condition1) %>%
+  mutate(across(c(predicted, conf.low, conf.high), ~unt(.))) %>% 
+  ggplot(aes(x = stress, y = predicted, ymin = conf.low, ymax = conf.high)) + 
+  geom_line() + geom_ribbon(alpha = 0.3)
+```
+
+
+other variable `phyheal` held at mean value. Or plot both (without ribbons this time)
+
+```{r}
+plot_cap(visits.4, condition = c("stress", "phyheal"), draw = FALSE) %>% 
+  rename(stress = condition1, phyheal = condition2) %>% 
+  mutate(across(c(predicted, conf.low, conf.high), ~unt(.))) %>% 
+  ggplot(aes(x = stress, y = predicted, colour = phyheal)) +
+  geom_line()
+```
+
+
+
+```{r}
+predictions(visits.4, variables = "stress")
 ```
 
